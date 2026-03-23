@@ -1,0 +1,82 @@
+Design a Ride matching Service.
+Followed by questions on 2 Leadership Principles.
+
+
+
+Design a News Feed System.
+The discussion went really good as I have been preparing for HLDs since forever.
+
+Document upload and extraction system
+I took my time to clarify the question and requirements and proceeded with the design. Every decision that I took in the design was also mutually discussed as well along with the tradeoffs. Always keep discussing in such rounds which will help you have a map in mind for the design.
+
+Bank Application
+Gave all functional and non-functional requirements along with core entities and coded core classes with apt patterns used. Interviewer was happy with concurrency handling while writing code and I could complete the core code and explain as well within time.
+
+Discussion:
+• Leadership Principles (LP)
+• Design a service to find a rider for a quick commerce app-LLD
+
+Self Rating: Hire
+
+⸻
+
+Round 3: LLD (Low-Level Design)
+
+Problem:
+Design an offline download manager for a social media app.
+
+Completed the code and answered follow-up questions.
+
+
+Discussion:
+• Leadership Principles (LP)
+• Design an Event Logging System
+
+LLD - Design an API to fetch most frequently played k songs.
+
+
+ask: Design an Amazon Customer Chat System.
+Approach: I have used Hybrid design incorporating real-time messaging (similar to WhatsApp) and agent-matching logic (similar to Uber’s driver matching).Not sure If it is corect or not.
+
+Problem: Given a list of shows (StartTime, EndTime, Bandwidth), find the maximum bandwidth required at any given time.
+Solution: I used the Sweep Line Algorithm .
+
+Round2(LLD): Design TicketMaster
+Expectations : High Level architecture , Code for search and booking , where could be issues in code , FRs and NFRs .
+
+Round3(HLD + My project Overview) : Design Meeting Room Scheduler
+Expectations : High Level architecture , In-depth grilling on reddis and kafka and elastic search , DB choices .
+
+
+
+use below link to get more questions
+https://leetcode.com/discuss/post/7355849/amazon-interview-experiences-last-6-mont-cfv1/
+
+This is the classic question they generally ask
+
+𝗖𝗼𝗿𝗲 𝗝𝗮𝘃𝗮/𝗕𝗮𝗰𝗸𝗲𝗻𝗱
+ 1. HashMap vs ConcurrentHashMap, equals/hashCode contract, immutability
+ 2. Threads vs executors, JMM basics, GC tuning (G1/ZGC talk-throughs)
+ 3. Java 8/11/17 features in practice (streams, records, var, switch, text blocks)
+ 4. Resilience in prod: retries, timeouts, circuit breakers (what + where)
+ 
+𝗗𝗦𝗔/𝗖𝗼𝗱𝗶𝗻𝗴
+ 1. Arrays/Strings: two-sum variants, move zeros, anagrams, longest prefix
+ 2. Graphs/Trees: BFS/DFS, shortest path, tree re-rooting, DSU
+ 3. DP staples: LIS, coin change
+ 4. Binary search patterns; streamy transforms (filter → map → reduce)
+
+𝗦𝗽𝗿𝗶𝗻𝗴/𝗠𝗶𝗰𝗿𝗼𝘀𝗲𝗿𝘃𝗶𝗰𝗲𝘀/𝗗𝗮𝘁𝗮𝗯𝗮𝘀𝗲
+ 1. Spring Boot auto-config, configuration profiles, Actuator/health
+ 2. REST design: validation, versioning, idempotency; SAGA/outbox patterns
+ 3. Kafka (ordering, retries, DLQs) and RabbitMQ (work queues) in payments flows
+ 4. Observability: metrics/tracing; dealing with 300B+ metrics/day style scale
+ 5. Index design & trade-offs; deduping rows; window functions vs GROUP BY
+ 6. Transaction isolation, pagination strategies; read-vs-write models for feeds
+
+𝗦𝘆𝘀𝘁𝗲𝗺 𝗗𝗲𝘀𝗶𝗴𝗻 
+ 1. Design a UPI-style payment service
+ 2. Transaction feed service, inspired by TStore.
+ 3. In-app Inbox/Alerts/chat-like pub-sub ala Bullhorn.
+ 4. Job scheduler at scale like Clockwork.
+ 5. Metrics platform for SLOs.
