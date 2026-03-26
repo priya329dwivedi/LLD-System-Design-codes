@@ -16,7 +16,7 @@ public class ShowSeat {
         this.status = SeatStatus.AVAILABLE;
     }
 
-    public boolean lock(String userId) {
+    public synchronized boolean lock(String userId) {
         releaseIfExpired();
         if (status != SeatStatus.AVAILABLE) return false;
         this.status = SeatStatus.LOCKED;
@@ -25,19 +25,19 @@ public class ShowSeat {
         return true;
     }
 
-    public boolean confirmBooking(String userId) {
+    public synchronized boolean confirmBooking(String userId) {
         if (status != SeatStatus.LOCKED || !userId.equals(lockedByUserId)) return false;
         this.status = SeatStatus.BOOKED;
         return true;
     }
 
-    public void release() {
+    public synchronized void release() {
         this.status = SeatStatus.AVAILABLE;
         this.lockedByUserId = null;
         this.lockedAt = 0;
     }
 
-    public void releaseIfExpired() {
+    public synchronized void releaseIfExpired() {
         if (status == SeatStatus.LOCKED && System.currentTimeMillis() - lockedAt >= LOCK_TIMEOUT_MS) {
             release();
         }
