@@ -19,9 +19,12 @@ import org.designpattern.practiceQuestions.ClaudePractice.BookMyShow.strategy.We
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class Main {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InterruptedException {
 
         // ========== Setup Theatre & Screen ==========
         Screen screen1 = new Screen("SCR1", "Screen 1");
@@ -114,5 +117,54 @@ public class Main {
         for (Booking b : bookingService.getBookingHistory(priya.getId())) {
             System.out.println("  " + b);
         }
+
+        // ========== Concurrent Seat Booking ==========
+        System.out.println("\n========== Concurrent Seat Booking (5 users race for same seats) ==========\n");
+
+        // Fresh show for concurrency test
+        Screen screen2 = new Screen("SCR2", "Screen 2");
+        for (int i = 1; i <= 6; i++) {
+            screen2.addSeat(new Seat("A" + i, "A", i, SeatType.REGULAR));
+        }
+        Show concurrentShow = new Show("SH2", movie, screen2, "9:30 PM", "2026-03-23");
+        bookingService.setPricingStrategy(new BasePricing());
+
+        // 5 users all try to book seats A1, A2 at the same time
+        User[] users = {
+            new User("U10", "User-1", "u1@email.com", "1111111111"),
+            new User("U11", "User-2", "u2@email.com", "2222222222"),
+            new User("U12", "User-3", "u3@email.com", "3333333333"),
+            new User("U13", "User-4", "u4@email.com", "4444444444"),
+            new User("U14", "User-5", "u5@email.com", "5555555555")
+        };
+
+        ExecutorService executor = Executors.newFixedThreadPool(5);
+        CountDownLatch latch = new CountDownLatch(1);  // ensures all threads start together
+
+        for (User user : users) {
+            executor.submit(() -> {
+                try {
+                    latch.await();  // wait for signal so all threads race at once
+                    List<ShowSeat> seats = bookingService.selectSeats(concurrentShow, Arrays.asList("A1", "A2"), user);
+                    if (seats != null) {
+                        PaymentMethod payment = PaymentFactory.createPayment("UPI");
+                        Booking booking = bookingService.confirmBooking(user, concurrentShow, seats, payment);
+                        System.out.println("[WINNER] " + user.getName() + " → " + booking);
+                    } else {
+                        System.out.println("[FAILED] " + user.getName() + " → seats already taken");
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            });
+        }
+
+        latch.countDown();  // release all threads at once
+        executor.shutdown();
+        executor.awaitTermination(10, java.util.concurrent.TimeUnit.SECONDS);
+
+        System.out.println("\n========== Seat Layout After Concurrent Booking ==========");
+        concurrentShow.displaySeatLayout();
+        System.out.println("Available seats: " + concurrentShow.getAvailableSeats().size());
     }
 }

@@ -1,6 +1,7 @@
 package org.designpattern.practiceQuestions.ClaudePractice.BookMyShow.model;
 
 import lombok.Getter;
+import lombok.Synchronized;
 
 @Getter
 public class ShowSeat {
@@ -16,7 +17,8 @@ public class ShowSeat {
         this.status = SeatStatus.AVAILABLE;
     }
 
-    public synchronized boolean lock(String userId) {
+    @Synchronized
+    public boolean lock(String userId) {
         releaseIfExpired();
         if (status != SeatStatus.AVAILABLE) return false;
         this.status = SeatStatus.LOCKED;
@@ -25,19 +27,22 @@ public class ShowSeat {
         return true;
     }
 
-    public synchronized boolean confirmBooking(String userId) {
+    @Synchronized
+    public boolean confirmBooking(String userId) {
         if (status != SeatStatus.LOCKED || !userId.equals(lockedByUserId)) return false;
         this.status = SeatStatus.BOOKED;
         return true;
     }
 
-    public synchronized void release() {
+    @Synchronized
+    public void release() {
         this.status = SeatStatus.AVAILABLE;
         this.lockedByUserId = null;
         this.lockedAt = 0;
     }
 
-    public synchronized void releaseIfExpired() {
+    @Synchronized
+    public void releaseIfExpired() {
         if (status == SeatStatus.LOCKED && System.currentTimeMillis() - lockedAt >= LOCK_TIMEOUT_MS) {
             release();
         }

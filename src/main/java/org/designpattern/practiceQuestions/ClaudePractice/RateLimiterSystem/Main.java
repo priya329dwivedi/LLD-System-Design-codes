@@ -4,11 +4,12 @@ import org.designpattern.practiceQuestions.ClaudePractice.RateLimiterSystem.fact
 import org.designpattern.practiceQuestions.ClaudePractice.RateLimiterSystem.observer.AlertNotifier;
 import org.designpattern.practiceQuestions.ClaudePractice.RateLimiterSystem.observer.AnalyticsLogger;
 import org.designpattern.practiceQuestions.ClaudePractice.RateLimiterSystem.service.RateLimiterService;
+import org.designpattern.practiceQuestions.ClaudePractice.RateLimiterSystem.strategy.LeakyBucketStrategy;
 import org.designpattern.practiceQuestions.ClaudePractice.RateLimiterSystem.strategy.RateLimitStrategy;
 import org.designpattern.practiceQuestions.ClaudePractice.RateLimiterSystem.strategy.SlidingWindowStrategy;
 
 public class Main {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InterruptedException {
 
         // ========== Free tier: Fixed Window (5 requests/min) ==========
         System.out.println("========== Free Tier (Fixed Window: 5 req/min) ==========\n");
@@ -51,6 +52,35 @@ public class Main {
             if (!allowed || i > 17) {
                 System.out.println("Request " + i + ": " + (allowed ? "ALLOWED" : "REJECTED"));
             }
+        }
+
+        // ========== Leaky Bucket ==========
+        System.out.println("\n========== Leaky Bucket (capacity: 5, leak: 2/sec) ==========\n");
+
+        RateLimiterService.resetInstance();
+        RateLimiterService leakyService = RateLimiterService.getInstance(new LeakyBucketStrategy(5, 2), 2);
+        leakyService.addObserver(new AlertNotifier());
+
+        // Fill the bucket with 5 rapid requests
+        System.out.println("--- Sending 5 rapid requests ---");
+        for (int i = 1; i <= 5; i++) {
+            boolean allowed = leakyService.handleRequest("leaky_user");
+            System.out.println("Request " + i + ": " + (allowed ? "ALLOWED" : "REJECTED"));
+        }
+
+        // 6th request — bucket is full, should be rejected
+        System.out.println("\n--- 6th request (bucket full) ---");
+        System.out.println("Request 6: " + (leakyService.handleRequest("leaky_user") ? "ALLOWED" : "REJECTED"));
+
+        // Wait 2 seconds — bucket leaks ~4 units
+        System.out.println("\n--- Waiting 2 seconds for bucket to leak ---");
+        Thread.sleep(2000);
+
+        // Requests should be allowed again after leak
+        System.out.println("\n--- Requests after leak ---");
+        for (int i = 1; i <= 4; i++) {
+            boolean allowed = leakyService.handleRequest("leaky_user");
+            System.out.println("Request " + i + ": " + (allowed ? "ALLOWED" : "REJECTED"));
         }
     }
 }
