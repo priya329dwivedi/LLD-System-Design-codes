@@ -4,11 +4,11 @@ public class ThrottleLogger implements ThrottleObserver {
 
     @Override
     public void onAllowed(String userId) {
-        System.out.println("[LOG] Request ALLOWED for user: " + userId);
+        System.out.println("[LOG]   Request ALLOWED  — user: " + userId);
     }
 
     @Override
     public void onThrottled(String userId) {
-        System.out.println("[ALERT] Request THROTTLED for user: " + userId);
+        System.out.println("[ALERT] Request THROTTLED — user: " + userId);
     }
 }

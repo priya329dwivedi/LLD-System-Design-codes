@@ -1,134 +1,119 @@
-# Subscription Platform — Amazon Prime Video LLD
+# Amazon Prime Video — Subscription Platform LLD (Interview Style)
 
-## Problem Statement
+## Requirements
+1. Plan Management — FREE / BASIC / PREMIUM tiers
+2. Subscription Lifecycle — subscribe, upgrade, downgrade, renew, cancel
+3. Content Gating — access based on subscription tier
+4. Payment Processing — pluggable payment methods (Strategy)
+5. Notifications — email/SMS on subscription events (Observer)
+6. Subscription History — track all past + current subscriptions per user
 
-Design a subscription platform (like Amazon Prime Video) that allows users to subscribe to plans, manage billing cycles, access content based on subscription tier, handle upgrades/downgrades, and process renewals/cancellations. The system should support multiple plan types with different content access levels, payment processing, and user notifications.
+---
 
-## Functional Requirements
+## Layers
 
-- **Browse plans** — View available subscription plans (Free, Basic, Premium).
-- **Subscribe to a plan** — User selects a plan, provides payment, subscription starts.
-- **Access content** — Content access is gated by subscription tier (Free=ads+limited, Basic=no ads, Premium=4K+downloads).
-- **Upgrade/Downgrade plan** — Switch plans mid-cycle with prorated billing.
-- **Auto-renew subscription** — Charge user automatically at end of billing cycle.
-- **Cancel subscription** — Cancel with access until end of current billing period.
-- **Payment processing** — Support multiple payment methods (CreditCard, UPI, Wallet).
-- **Notify users** — On subscription created, renewed, cancelled, payment failed, plan changed.
-- **View subscription history** — Past and current subscriptions for a user.
+```
+Model       →  PlanTier, SubscriptionStatus, Plan, User, Subscription, Content
+Repository  →  PlanRepository, UserRepository, SubscriptionRepository, ContentRepository
+Strategy    →  PaymentStrategy, CreditCardPayment, UPIPayment
+Observer    →  SubscriptionObserver, NotificationService
+Service     →  SubscriptionService
+Main        →  demo driver
+```
 
-## Key Entities & Schema
+---
 
-| Entity | Fields |
-|---|---|
-| **User** | id, name, email, phone |
-| **Plan** | id, name, tier (FREE/BASIC/PREMIUM), price, billingCycle (MONTHLY/YEARLY), features |
-| **Subscription** | id, userId, planId, status (ACTIVE/CANCELLED/EXPIRED/PAUSED), startDate, endDate, autoRenew |
-| **Payment** | id, subscriptionId, amount, method, status (SUCCESS/FAILED/PENDING), transactionDate |
-| **Content** | id, title, genre, requiredTier (FREE/BASIC/PREMIUM) |
-| **Invoice** | id, subscriptionId, amount, billingPeriodStart, billingPeriodEnd, status |
+## Entity Design
 
-### Relationships
-- User → has many → Subscriptions
-- Subscription → belongs to → User + Plan
-- Subscription → has many → Payments
-- Subscription → has many → Invoices
-- Content → requires → Plan tier (access gate)
+```
+Plan          id, name, tier (PlanTier), pricePerMonth, billingCycleDays
+User          id, name, email
+Subscription  id, userId, planId, status, startDate, endDate, autoRenew
+Content       id, title, requiredTier (PlanTier)
+```
 
-## Design Patterns That May Apply
+**Relationships:**
+- User → has many → Subscriptions (one ACTIVE at a time)
+- Subscription → belongs to → one Plan
+- Content → requires minimum → PlanTier
+
+---
+
+## Data Modelling
+
+| Repository | Key | Value | Purpose |
+|---|---|---|---|
+| `PlanRepository` | planId | Plan | Catalogue of available plans |
+| `UserRepository` | userId | User | Registered users |
+| `SubscriptionRepository` | subscriptionId | Subscription | All subscriptions; `getActiveSub(userId)` loops to find ACTIVE |
+| `ContentRepository` | contentId | Content | Content library with tier gates |
+
+---
+
+## API Design (Service methods)
+
+```
+subscribe(userId, planId, PaymentStrategy)          → charge + create Subscription + notify
+cancel(subscriptionId)                              → mark CANCELLED + notify (access until endDate)
+upgrade(subscriptionId, newPlanId, PaymentStrategy) → charge price diff + update planId + notify
+downgrade(subscriptionId, newPlanId)                → update planId + notify (no refund in basic flow)
+renew(subscriptionId, PaymentStrategy)              → charge + extend endDate + notify
+canAccess(userId, contentId)                        → compare user tier vs content.requiredTier
+listPlans()                                         → return all plans
+showHistory(userId)                                 → all subscriptions for user
+```
+
+---
+
+## Content Access Logic
+
+```java
+PlanTier userTier = (activeSub == null) ? FREE : plan.tier;
+boolean allowed = userTier.ordinal() >= content.requiredTier.ordinal();
+// FREE=0, BASIC=1, PREMIUM=2 — ordinal comparison handles all tier checks in one line
+```
+
+---
+
+## Subscription State Machine
+
+```
+subscribe()  →  ACTIVE
+ACTIVE       →  CANCELLED  (cancel)
+ACTIVE       →  ACTIVE     (renew — extends endDate)
+ACTIVE       →  ACTIVE     (upgrade/downgrade — changes planId)
+CANCELLED    →  terminal   (access until endDate)
+```
+
+---
+
+## Design Patterns
 
 | Pattern | Where | Why |
 |---|---|---|
-| **Strategy Pattern** | Billing — monthly, yearly, prorated upgrade/downgrade calculation | Swap billing logic per plan type |
-| **Factory Pattern** | Payment methods (CreditCard/UPI/Wallet), Plan creation | Create the right object based on type |
-| **Observer Pattern** | Notify on subscribe, renew, cancel, payment failed (Email, SMS, Push) | Decouple subscription lifecycle from notifications |
-| **State Pattern** | Subscription states — ACTIVE → CANCELLED → EXPIRED, ACTIVE → PAUSED → ACTIVE | Clean state transitions with behavior per state |
-| **Singleton Pattern** | SubscriptionService — one shared instance managing all subscriptions | Consistent billing and state management |
+| **Strategy** | `PaymentStrategy` → `CreditCardPayment`, `UPIPayment` | Swap payment method without changing the service |
+| **Observer** | `SubscriptionObserver` → `NotificationService` | Decouple email/SMS notifications from subscription logic |
 
-## API Design
+---
 
-```
-POST   /api/plans                          → List all available plans
-POST   /api/subscribe                      → Create new subscription (userId, planId, paymentMethod)
-POST   /api/subscription/{id}/cancel       → Cancel subscription
-POST   /api/subscription/{id}/upgrade      → Upgrade plan (newPlanId)
-POST   /api/subscription/{id}/downgrade    → Downgrade plan (newPlanId)
-GET    /api/user/{id}/subscriptions        → Get user's subscription history
-GET    /api/content/{id}/access            → Check if user can access content (userId, contentId)
-POST   /api/subscription/{id}/renew        → Process renewal (auto or manual)
-```
+## Interview Follow-ups
 
-## Subscription State Diagram
+- **Prorated billing on upgrade?** — `charge(newPrice - oldPrice) * remainingDays / cycleDays`
+- **Prevent double charging?** — Idempotency key on payment (transactionId stored and checked before charging)
+- **Payment failure on renewal?** — Mark PAYMENT_PENDING, retry with backoff, then EXPIRED after grace period
+- **Free trial?** — Add TRIAL to `SubscriptionStatus`; trial converts to ACTIVE only after first payment
+- **Auto-renew?** — Scheduled job loops subscriptions where `autoRenew=true` and `endDate == today`, calls `renew()`
 
-```
-                    subscribe()
-                        │
-                        v
-                  ┌──────────┐
-         ┌───────│  ACTIVE   │───────┐
-         │       └─────┬─────┘       │
-         │             │             │
-    cancel()      auto-renew     pause()
-         │             │             │
-         │        ┌────+────┐        │
-         │        │         │        v
-         │        v         v   ┌─────────┐
-         │   ┌────────┐  ┌──────┤ PAUSED  │
-         │   │RENEWED │  │FAILED│         │
-         │   │(ACTIVE)│  │      └────┬────┘
-         │   └────────┘  v          │
-         │          ┌─────────┐  resume()
-         v          │ PAYMENT │     │
-    ┌──────────┐    │ FAILED  │     │
-    │CANCELLED │    └────┬────┘     │
-    │(access   │         │          │
-    │ till end)│    retry/expire     │
-    └────┬─────┘         │          │
-         │               v          │
-         │          ┌─────────┐     │
-         └─────────>│ EXPIRED │<────┘
-         (end date) └─────────┘  (timeout)
-```
+---
 
-## Content Access Flow
+## What to say to the interviewer
 
-```
-        User requests content
-                │
-                v
-        ┌───────────────┐
-        │ Get user's    │
-        │ active sub    │
-        └───────┬───────┘
-                │
-          ┌─────+─────┐
-          │           │
-          v           v
-    ┌──────────┐  ┌──────────┐
-    │ Has sub  │  │ No sub   │
-    └────┬─────┘  │ (FREE    │
-         │        │  content) │
-         v        └──────────┘
-    ┌──────────────────┐
-    │ Check:           │
-    │ user.plan.tier   │
-    │ >= content.tier  │
-    └───────┬──────────┘
-            │
-      ┌─────+─────┐
-      │           │
-      v           v
-  ┌───────┐  ┌─────────┐
-  │GRANTED│  │ DENIED  │
-  │(play) │  │(show    │
-  └───────┘  │ upgrade)│
-             └─────────┘
-```
+1. **Entities first** — `Plan` defines tiers; `Subscription` links user + plan + billing dates; `Content` stores the minimum tier needed. These three cover the complete access-control flow.
 
-## Interview Follow-ups to Consider
+2. **Tier comparison with enum ordinal** — `PlanTier` is declared `FREE, BASIC, PREMIUM` in order so `userTier.ordinal() >= content.requiredTier.ordinal()` covers all rules in one line — no if-else chain.
 
-- How do you handle **prorated billing** on upgrade/downgrade? (Strategy Pattern — calculate remaining days, credit/charge difference)
-- How do you prevent **double charging** on auto-renew? (Idempotent payment processing with transaction ID)
-- How do you handle **payment failure** during renewal? (Retry with backoff, notify user, grace period, then expire)
-- How would you implement **free trial**? (Subscription state: TRIAL → ACTIVE on first payment, EXPIRED if no payment)
-- How do you **gate content** by subscription tier? (Content has requiredTier, check user's plan tier >= required)
-- How would you handle **concurrent upgrade requests**? (Synchronized on subscription, optimistic locking)
+3. **Strategy for payment** — pass `CreditCardPayment` or `UPIPayment` at the call site. Adding Wallet = one new class, zero service changes.
+
+4. **Observer for notifications** — `NotificationService` is registered once. Adding `SMSObserver` or `AnalyticsObserver` doesn't touch `SubscriptionService`.
+
+5. **Upgrade charges only the diff** — `upgrade()` calls `processPayment(newPlan.price - oldPlan.price)`. Mention prorated version as a follow-up: multiply by `remainingDays / cycleDays`.

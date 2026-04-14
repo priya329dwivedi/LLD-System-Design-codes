@@ -47,24 +47,39 @@ public class Hand {
     // Display: show all face-up cards, hide face-down
     public String display() {
         StringBuilder sb = new StringBuilder();
-        int visibleTotal = 0;
         boolean hasHidden = false;
 
         for (Card card : cards) {
             sb.append(card).append(" ");
-            if (card.isFaceUp()) {
-                visibleTotal += card.getRank().getValue();
-            } else {
+            if (!card.isFaceUp()) {
                 hasHidden = true;
             }
         }
 
         if (hasHidden) {
-            sb.append(" (visible: ").append(visibleTotal).append(")");
+            sb.append(" (visible: ").append(calculateVisibleValue()).append(")");
         } else {
             sb.append(" (total: ").append(calculateValue()).append(")");
         }
         return sb.toString();
+    }
+
+    private int calculateVisibleValue() {
+        int total = 0;
+        int aceCount = 0;
+        for (Card card : cards) {
+            if (card.isFaceUp()) {
+                total += card.getRank().getValue();
+                if (card.getRank() == Rank.ACE) {
+                    aceCount++;
+                }
+            }
+        }
+        while (total > 21 && aceCount > 0) {
+            total -= 10;
+            aceCount--;
+        }
+        return total;
     }
 
     public void revealAll() {
